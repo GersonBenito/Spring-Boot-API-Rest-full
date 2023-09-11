@@ -4,6 +4,7 @@ import com.application.rest.controllers.dto.MakerDTO;
 import com.application.rest.entities.Maker;
 import com.application.rest.service.IMakerService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,7 +24,10 @@ public class MakerController {
 
     @GetMapping("/{id}")
     public ResponseEntity<?> findById(@PathVariable Long id){
+
         Optional<Maker> makerOptional = makerService.findById(id);
+
+        Map<String, Object> response = new HashMap<>();
 
         if(makerOptional.isPresent()){
             Maker maker = makerOptional.get(); // el .get() obtiene la entidad
@@ -35,19 +39,23 @@ public class MakerController {
                     .productList(maker.getProductList())
                     .build(); // construimos un objeto de tipo MakerDTO
 
-            return ResponseEntity.ok(makerDTO);
+            //response.put("status", HttpStatus.OK);
+            response.put("Data", makerDTO);
+            response.put("message", "Registro obtenido");
+
+            return ResponseEntity.ok(response);
         }
 
-        Map<String, String> response = new HashMap<>();
-
-        response.put("status", "404");
         response.put("message", "Product with id " + id + " not found");
 
-        return ResponseEntity.notFound().build();
+        return new ResponseEntity<Object>(response, HttpStatus.NOT_FOUND);
     }
 
     @GetMapping // en la ruta raiz
-    public ResponseEntity<?> findAll(){
+    public ResponseEntity<Map<String, Object>> findAll(){
+
+        Map<String, Object> response = new HashMap<>();
+
         List<MakerDTO> markerList = makerService.findAll()
                 .stream() // convertir a un MakerDTO
                 .map(maker -> MakerDTO.builder() // funcion landa -->
@@ -57,14 +65,21 @@ public class MakerController {
                         .build()
                 ).toList();
 
-        return ResponseEntity.ok(markerList);
+        response.put("Data", markerList);
+        response.put("message", "Registros obtenidos");
+
+        return ResponseEntity.ok(response);
 
     }
 
     @PostMapping // en la ruta raiz
     public ResponseEntity<?> save(@RequestBody MakerDTO makerDTO) throws URISyntaxException {
+
+        Map<String, Object> response = new HashMap<>();
+
         if(makerDTO.getName().isBlank()){
-            return ResponseEntity.badRequest().build();
+            response.put("message", "El nombre del fabricante esta vacio");
+            return new ResponseEntity<Object>(response, HttpStatus.BAD_REQUEST);
         }
 
         // convertir MakerDTO a Maker
@@ -74,7 +89,10 @@ public class MakerController {
                         .build()
         );
 
-        return ResponseEntity.created(new URI("/api/maker")).build();
+        response.put("message", "Registro creado");
+        response.put("url", new URI("/api/maker"));
+
+        return new ResponseEntity<Object>(response, HttpStatus.CREATED);
     }
 
     @PutMapping("/{id}")
@@ -82,30 +100,45 @@ public class MakerController {
         // verificar si existe el registro a actualizar
         Optional<Maker> makerOptional = makerService.findById(id);
 
-        if(makerOptional.isPresent()){
-            Maker maker = makerOptional.get();
-            maker.setName(makerDTO.getName()); // unicamente se actualizara el nombre
+        Map<String, Object> response = new HashMap<>();
 
+        if(makerOptional.isPresent()){
+
+            Maker maker = makerOptional.get();
+
+            if(makerDTO.getName().isBlank()){
+                response.put("message", "Los datos estan vacios");
+                return new ResponseEntity<Object>(response, HttpStatus.BAD_REQUEST);
+            }
+
+            maker.setName(makerDTO.getName()); // unicamente se actualizara el nombre
             makerService.save(maker);
 
-            return ResponseEntity.ok("Registro actualizado");
+            response.put("message", "Registro actualizado");
+            return ResponseEntity.ok(response);
         }
 
-        return ResponseEntity.notFound().build();
+        response.put("message", "Registro con id " + id + " no encontrado");
+        return new ResponseEntity<Object>(response, HttpStatus.NOT_FOUND);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteById(@PathVariable Long id){
+        Map<String, Object> response = new HashMap<>();
         if(id == null){
-            return ResponseEntity.badRequest().build();
+            response.put("message", "id null");
+            return new ResponseEntity<Object>(response, HttpStatus.BAD_REQUEST);
         }
 
         Optional<Maker> makerOptional = makerService.findById(id);
         if(makerOptional.isPresent()){
             makerService.deleteById(id);
-            return ResponseEntity.ok("Registro eliminado");
+
+            response.put("message", "Registro eliminado");
+            return ResponseEntity.ok(response);
         }
 
-        return ResponseEntity.notFound().build();
+        response.put("message", "Registro con id "+ id +" no encontrado");
+        return new ResponseEntity<Object>(response, HttpStatus.NOT_FOUND);
     }
 }
